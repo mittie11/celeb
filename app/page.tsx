@@ -1,10 +1,15 @@
-import { posts } from "@/lib/posts";
+import { getAllPosts, toPost } from "@/lib/sanity";
 import { categories } from "@/lib/categories";
 import ArticleCard from "@/components/ArticleCard";
 import AdUnit from "@/components/AdUnit";
 import Link from "next/link";
 
-export default function HomePage() {
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const sanityPosts = await getAllPosts();
+  const posts = sanityPosts.map(toPost);
+
   const featured = posts[0];
   const recent = posts.slice(1, 7);
   const sidebarPosts = posts.slice(7, 12);

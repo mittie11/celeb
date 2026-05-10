@@ -1,13 +1,17 @@
 import { MetadataRoute } from "next";
-import { posts } from "@/lib/posts";
+import { getAllPosts } from "@/lib/sanity";
 import { categories } from "@/lib/categories";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const revalidate = 3600;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://www.starbuzzdaily.com";
+
+  const posts = await getAllPosts();
 
   const articleUrls = posts.map((post) => ({
     url: `${baseUrl}/${post.slug}`,
-    lastModified: new Date(post.date),
+    lastModified: post.publishedAt ? new Date(post.publishedAt) : new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));

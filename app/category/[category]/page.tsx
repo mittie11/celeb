@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { posts } from "@/lib/posts";
+import { getPostsByCategory, toPost } from "@/lib/sanity";
 import { categories, getCategoryName } from "@/lib/categories";
 import ArticleCard from "@/components/ArticleCard";
 import AdUnit from "@/components/AdUnit";
+
+export const revalidate = 60;
 
 type Props = {
   params: Promise<{ category: string }>;
@@ -28,7 +30,8 @@ export default async function CategoryPage({ params }: Props) {
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
-  const categoryPosts = posts.filter((p) => p.category === category);
+  const sanityPosts = await getPostsByCategory(category);
+  const categoryPosts = sanityPosts.map(toPost);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

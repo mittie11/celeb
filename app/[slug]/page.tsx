@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { posts, getPostBySlug, getRelatedPosts } from "@/lib/posts";
+import { getAllPosts, getPostBySlug, getRelatedPosts, getImageUrl, toPost } from "@/lib/sanity";
 import { getCategoryName } from "@/lib/categories";
 import ArticleCard from "@/components/ArticleCard";
 import AdUnit from "@/components/AdUnit";
 import Link from "next/link";
+
+export const revalidate = 60;
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -25,33 +27,38 @@ function splitContentForAd(html: string): [string, string] {
 }
 
 export async function generateStaticParams() {
+  const posts = await getAllPosts();
   return posts.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
-  if (!post) return {};
+  const sanityPost = await getPostBySlug(slug);
+  if (!sanityPost) return {};
 
+  const imageUrl = getImageUrl(sanityPost);
   return {
-    title: post.title,
-    description: post.excerpt,
+    title: sanityPost.title,
+    description: sanityPost.excerpt,
     openGraph: {
-      title: post.title,
-      description: post.excerpt,
+      title: sanityPost.title,
+      description: sanityPost.excerpt,
       type: "article",
-      publishedTime: post.date,
-      images: [{ url: post.image, width: 1200, height: 630, alt: post.title }],
+      publishedTime: sanityPost.publishedAt,
+      images: imageUrl ? [{ url: imageUrl, width: 1200, height: 630, alt: sanityPost.title }] : [],
     },
   };
 }
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
-  if (!post) notFound();
+  const sanityPost = await getPostBySlug(slug);
+  if (!sanityPost) notFound();
 
-  const related = getRelatedPosts(post, 3);
+  const post = toPost(sanityPost);
+  const sanityRelated = await getRelatedPosts(slug, sanityPost.category ?? "", 3);
+  const related = sanityRelated.map(toPost);
+
   const [firstHalf, secondHalf] = splitContentForAd(post.content);
   const proseClasses =
     "prose prose-lg max-w-none prose-headings:font-bold prose-headings:text-gray-900 prose-h2:text-2xl prose-h2:mt-8 prose-h3:text-xl prose-h3:mt-6 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-a:text-pink-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900";
@@ -90,16 +97,18 @@ export default async function ArticlePage({ params }: Props) {
             </div>
           </header>
 
-          <div className="relative h-64 sm:h-80 lg:h-96 rounded-2xl overflow-hidden mb-6">
-            <Image
-              src={post.image}
-              alt={post.title}
-              fill
-              className="object-cover"
-              priority
-              sizes="(max-width: 768px) 100vw, 66vw"
-            />
-          </div>
+          {post.image && (
+            <div className="relative h-64 sm:h-80 lg:h-96 rounded-2xl overflow-hidden mb-6">
+              <Image
+                src={post.image}
+                alt={post.title}
+                fill
+                className="object-cover"
+                priority
+                sizes="(max-width: 768px) 100vw, 66vw"
+              />
+            </div>
+          )}
 
           <AdUnit slot="rectangle" className="mb-6" />
 
